@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Photos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- All photos: a grid of thumbnails under a title bar. -->
+  <section id="grid">
+    <header>
+      <div>
+        <div id="title">Favorites</div>
+        <div id="count"></div>
+      </div>
+      <div class="pill" id="btnSlideshow">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span>Slideshow</span>
+      </div>
+    </header>
+    <div id="viewport"><div id="wall"></div></div>
+    <div id="empty" class="hidden">No photos yet. Run sync-photos.py on the Mac, then install again.</div>
+  </section>
+
+  <!-- One photo at a time, full screen; two layers so photos crossfade. -->
+  <section id="viewer" class="hidden">
+    <div class="layer" id="layerA"></div>
+    <div class="layer" id="layerB"></div>
+    <div id="hint"></div>
+  </section>
+
+  <script src="photos.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

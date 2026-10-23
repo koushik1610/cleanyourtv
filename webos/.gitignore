@@ -1,0 +1,22 @@
+# pairing key, build output and files generated from your own TV
+.lgtv-key.json
+build/
+venv/
+__pycache__/
+app/apps.js
+app/icons/
+app/icon.png
+app/largeIcon.png
+.DS_Store
+
+# personal photos: never commit
+photos-cache/
+photos-app/photos/
+photos-app/thumbs/
+photos-app/photos.js
+photos-app/icon.png
+photos-app/largeIcon.png
+build-photos/
+
+# Apple's Photos icon, taken from this Mac for personal use: never commit
+assets/apple-photos-icon.png
