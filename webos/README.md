@@ -10,7 +10,8 @@ Tested on an LG OLED C6 (OLED55C6XLA, webOS 26, firmware 43.21.79).
 This copy, in the `webos/` folder of a [cleanyourtv](https://github.com/Gathin23/cleanyourtv) fork, is
 [OmkarK97's port](https://github.com/OmkarK97/webos-vibehack) with additions, tested on an LG OLED C2
 (webOS 25): a liquid glass look, apps grouped into categories, a Photos app fed from Apple Photos,
-and a Home watcher that quits the apps you leave so they stop holding memory.
+a Home button that works from the TV alone, a Casting menu, and an optional watcher that quits
+the apps you leave so they stop holding memory.
 
 ## What's different from Android
 
@@ -20,7 +21,7 @@ webOS is more locked down than Android TV, so three things work differently:
 |---|---|---|
 | Install | ADB, no account | LG's **Developer Mode** app (free LG developer account) |
 | App list | read on the TV | read from your computer by `sync-apps.py` and bundled in; webOS won't let an app list installed apps |
-| Home button | the launcher *is* Home | webOS always opens LG's home; `home-watch.py`, running on another device, switches straight back (about 0.1 s) |
+| Home button | the launcher *is* Home | webOS always opens LG's home; a service that comes with the launcher switches straight back (about 0.5 s) |
 
 There's no debloat step: webOS has no ADB-style package disabling. Turn off LG's ads in the TV's
 own settings instead (see [Cleaning up LG's home](#cleaning-up-lgs-home)).
@@ -69,26 +70,33 @@ holding 1 opens the launcher from anywhere.
 
 ## The Home button
 
-webOS hard-wires Home to LG's home, and blocks Developer Mode apps from seeing which app is in front,
-so the TV can't redirect it on its own. [`home-watch.py`](home-watch.py) does it from another
-always-on device on the same network: it watches the TV's foreground app and, the moment LG's home
-appears, opens the launcher on top.
+webOS hard-wires Home to LG's home. The launcher's package carries a small JS service
+([`service/`](service/)) that fixes that from the TV itself: it listens to the TV's remote-control
+service on `localhost:3000` for the app in front and, the moment LG's home appears, opens the
+launcher. No computer needed once it's installed. The first start asks on the TV to allow it.
 
 - **Press Home twice** within three seconds to stay on LG's home, for its menus.
-- When the TV powers on to LG's home, it goes to the launcher too.
-- When the watcher isn't running, Home simply opens LG's home as usual.
-- **It quits the apps you leave.** webOS keeps an app in memory after you switch away; on a 2 GB TV
-  a few of them push everything else into swap, and that's most of the lag. When the launcher comes
-  back to the front, the watcher closes every app opened since. LG's home is the exception: webOS
-  keeps it running whatever it's asked.
+- After a power cut or a cold boot, it takes over by itself: a persistent activity starts the
+  service again (on a C2, the launcher was in front about a minute and a half after power-on).
+- Failsafe: if the launcher doesn't open, or Home bounces more than four times in 20 seconds, the
+  service stands down for ten minutes and Home works as on a stock TV.
+- `takeOverHome: false` in `config.js` turns it off.
 
-Why not in the launcher itself? Tested on a C2: Developer Mode apps are denied the app manager's
-`running`, `closeByAppId` and `getForegroundAppInfo` calls, the remote-control service on
-`localhost:3000` answers a close from the TV itself with `403 access denied`, and webOS freezes a web
-app's scripts a few seconds after it leaves the screen (`keepAlive` in `appinfo.json` changes
-nothing), so it can't watch for Home either.
+Why a service and not the launcher? webOS freezes a web app's scripts a few seconds after it leaves
+the screen (`keepAlive` in `appinfo.json` changes nothing), so the launcher never hears about Home.
+A JS service keeps running.
 
-On a Mac, install it as a background service that starts at login:
+### Quitting the apps you leave (optional, needs another device)
+
+webOS keeps an app in memory after you switch away; on a 2 GB TV a few of them push everything
+else into swap, and that's most of the lag. [`home-watch.py`](home-watch.py) closes every app
+opened since the launcher was last in front. It has to run on another always-on device on the same
+network: tested on a C2, the TV refuses to close apps for anything on the TV itself (the app
+manager's `running` and `closeByAppId` are denied to Developer Mode apps and services, with or
+without `requiredACG`, and the remote-control service answers a close from localhost with `403
+access denied`). It also sends Home to the launcher, which does no harm next to the service.
+
+On a Mac, as a background service that starts at login:
 
 ```bash
 TV_HOST=192.168.1.50 ./home-watch-mac.sh       # install or update
@@ -97,9 +105,9 @@ TV_HOST=192.168.1.50 ./home-watch-mac.sh       # install or update
 
 macOS will ask for Local Network access for Python: allow it (System Settings → Privacy & Security →
 Local Network), or the watcher logs "No route to host". The log is at
-`~/Library/Logs/tv-vibehack-home-watch.log`. A Mac only redirects Home while it's awake and at
-home; for every time, run `python3 home-watch.py 192.168.1.50` on something that's always on, such
-as a Raspberry Pi.
+`~/Library/Logs/tv-vibehack-home-watch.log`. A Mac only does this while it's awake and at home;
+for every time, run `python3 home-watch.py 192.168.1.50` on something that's always on, such as a
+Raspberry Pi.
 
 ## Using it
 
@@ -119,6 +127,16 @@ saved on the TV.
 **Configure** in [`app/config.js`](app/config.js): the starting dock, apps to hide, the Live TV
 app, the number of columns, the categories and the dock glass. App ids come from `venv/bin/python sync-apps.py $TV_HOST --list`.
 Changing `dockApps` resets an order arranged on the TV.
+
+## Casting
+
+The Inputs menu ends with a **Casting** section, from the receivers `sync-apps.py` finds on the
+TV (they're hidden system apps, so they never show as tiles):
+
+- **AirPlay** (iPhone, iPad, Mac) and **Google Cast** (Android, Chrome, the Cast button in apps;
+  webOS 25 brought it to the C2) are always listening, so there's nothing to switch to: OK says
+  where to tap on the phone, with the TV's name as phones show it.
+- **Screen Share** (Miracast mirroring from Android phones that have it) has to be started: OK does.
 
 ## Photos
 
@@ -157,6 +175,23 @@ Measured on a C2 (2 GB RAM) by opening and closing apps over the Developer Mode 
 - Turning off **Quick Start+** makes every power-on a clean boot, and **Live Plus** stops `acr2`.
 - The launcher costs about 50 MB, Photos about 37 MB.
 
+## Undo everything
+
+Nothing here changes LG's own apps or settings, roots the TV or touches its firmware: it's two
+Developer Mode apps, so the stock TV is always one step away.
+
+```bash
+./restore.sh
+```
+
+stops the Home service and cancels its start-at-boot activity, removes the launcher and Photos, and
+removes the Mac watcher if it's installed. Home opens LG's home again; `./install.sh` puts it back.
+
+Without a computer: press Home twice for LG's home, then delete **Home** and **Photos** from the
+app list. Or open the **Developer Mode** app and turn off **Dev Mode Status**, which removes every
+app installed through it. If the Developer Mode session runs out, the apps stop opening and the TV
+behaves as stock until it's extended.
+
 ## Cleaning up LG's home
 
 For when you do land on it. Names vary a little by webOS version:
@@ -183,9 +218,11 @@ For when you do land on it. Names vary a little by webOS version:
 | File | What it does |
 |---|---|
 | [`app/`](app/) | The launcher: `index.html`, `style.css`, `app.js`, `config.js`, `appinfo.json` |
-| [`install.sh`](install.sh) | Syncs your apps, packages and installs the launcher, and opens it |
-| [`sync-apps.py`](sync-apps.py) | Reads apps, icons and HDMI inputs from the TV into `app/apps.js` and `app/icons/` |
-| [`home-watch.py`](home-watch.py) | Sends the Home button to the launcher and quits the apps you leave |
+| [`install.sh`](install.sh) | Syncs your apps, packages and installs the launcher and its service, and opens it |
+| [`sync-apps.py`](sync-apps.py) | Reads apps, icons, HDMI inputs and casting receivers from the TV into `app/apps.js` and `app/icons/` |
+| [`service/`](service/) | Runs on the TV, packaged with the launcher: sends Home to it, starts again after boot |
+| [`restore.sh`](restore.sh) | Puts the TV back to stock |
+| [`home-watch.py`](home-watch.py) | Optional, on another device: quits the apps you leave (and sends Home to the launcher) |
 | [`home-watch-mac.sh`](home-watch-mac.sh) | Runs the watcher as a macOS background service |
 | [`lgtv.py`](lgtv.py) | Pairs with and talks to the TV's remote-control service |
 | [`assets/icon.jpg`](assets/icon.jpg) | The app icon, resized to PNG by `install.sh` |

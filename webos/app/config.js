@@ -17,6 +17,10 @@ window.CONFIG = {
   // Tiles per row in the grid; the dock always has this many slots.
   columns: 8,
 
+  // Home opens the launcher, through the service that comes with it (press Home twice to stay on
+  // LG's home). false leaves Home to LG. The first start asks on screen to allow it.
+  takeOverHome: true,
+
   // A frosted glass plate behind each dock tile. false shows them on the bare wallpaper.
   dockGlass: true,
 

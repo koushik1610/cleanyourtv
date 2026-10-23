@@ -28,7 +28,7 @@ if [ ! -f app/icon.png ]; then
 fi
 
 rm -rf build && mkdir build
-ares package app -o build
+ares package app service -o build   # the launcher and its Home service, one package
 ares install -d "$DEVICE" build/${APP_ID}_*.ipk
 # NO_LAUNCH=1: install without opening it (background refreshes while something else is on).
 if [ -n "${NO_LAUNCH:-}" ]; then echo "Installed."; exit 0; fi

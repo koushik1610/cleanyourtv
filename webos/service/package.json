@@ -1,0 +1,6 @@
+{
+  "name": "com.gathin.tvhome.service",
+  "version": "1.0.0",
+  "description": "Sends the Home button to the launcher",
+  "main": "service.js"
+}
